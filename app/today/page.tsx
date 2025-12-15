@@ -3,6 +3,7 @@
 import { useTasks } from '../hooks/useTasks';
 import { Navigation } from '../components/Navigation';
 import { TodayHours } from '../components/TodayHours';
+import { NotesBlock } from '../components/NotesBlock';
 import { AddTaskForm } from '../components/AddTaskForm';
 import { TaskItem } from '../components/TaskItem';
 import { TimeCalendar } from '../components/TimeCalendar';
@@ -25,10 +26,11 @@ export default function TodayPage() {
   return (
     <div className="min-h-screen bg-zinc-50 dark:bg-black">
       <div className="container mx-auto max-w-7xl px-4 py-8">
-        <h1 className="mb-8 text-4xl font-bold text-black dark:text-zinc-50">
+        <h1 className="mb-6 text-4xl font-bold text-black dark:text-zinc-50">
           Task Manager
         </h1>
 
+        <NotesBlock />
         <TodayHours tasks={tasks} />
         <Navigation />
 
