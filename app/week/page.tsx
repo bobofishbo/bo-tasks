@@ -5,22 +5,14 @@ import { Navigation } from '../components/Navigation';
 import { TodayHours } from '../components/TodayHours';
 import { NotesBlock } from '../components/NotesBlock';
 import { TaskItem } from '../components/TaskItem';
-import { getTodayEasternDate, getTodayEasternDateObject } from '../utils/dateUtils';
+import { getTodayEasternDate, getWeekStartEasternDate } from '../utils/dateUtils';
 
 export default function WeekPage() {
   const { tasks, loading, toggleTask, deleteTask } = useTasks();
 
-  const today = getTodayEasternDateObject();
-  const todayStr = getTodayEasternDate();
-
-  const weekStart = new Date(today);
-  weekStart.setDate(today.getDate() - today.getDay()); // Start of week (Sunday)
-  weekStart.setHours(0, 0, 0, 0);
-
-  const weekTasks = tasks.filter((task) => {
-    const taskDate = new Date(task.date + 'T00:00:00');
-    return taskDate >= weekStart && taskDate <= today;
-  });
+  const today = getTodayEasternDate();
+  const weekStart = getWeekStartEasternDate();
+  const weekTasks = tasks.filter((task) => task.date >= weekStart && task.date <= today);
 
   if (loading) {
     return (
@@ -67,4 +59,3 @@ export default function WeekPage() {
     </div>
   );
 }
-

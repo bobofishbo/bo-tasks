@@ -5,7 +5,7 @@ import { Task } from '../types';
 import { getTodayEasternDate } from '../utils/dateUtils';
 
 interface AddTaskFormProps {
-  onAdd: (task: Omit<Task, 'id'>) => void;
+  onAdd: (task: Omit<Task, 'id' | 'timeBlocks'>) => void;
 }
 
 export function AddTaskForm({ onAdd }: AddTaskFormProps) {
@@ -14,23 +14,22 @@ export function AddTaskForm({ onAdd }: AddTaskFormProps) {
   const [taskDate, setTaskDate] = useState('');
 
   useEffect(() => {
-    const today = getTodayEasternDate();
-    setTaskDate(today);
+    setTaskDate(getTodayEasternDate());
   }, []);
 
-  const handleSubmit = () => {
+  const handleSubmit = (e?: React.FormEvent) => {
+    e?.preventDefault();
     if (!taskName.trim() || !taskHours || !taskDate) {
       alert('Please fill in all fields');
       return;
     }
+    const hours = parseFloat(taskHours);
+    if (!Number.isFinite(hours) || hours <= 0) {
+      alert('Hours must be a positive number');
+      return;
+    }
 
-    onAdd({
-      name: taskName,
-      hours: parseFloat(taskHours),
-      completed: false,
-      date: taskDate,
-    });
-
+    onAdd({ name: taskName.trim(), hours, completed: false, date: taskDate });
     setTaskName('');
     setTaskHours('');
     setTaskDate(getTodayEasternDate());
@@ -41,7 +40,7 @@ export function AddTaskForm({ onAdd }: AddTaskFormProps) {
       <h2 className="mb-4 text-xl font-semibold text-black dark:text-zinc-50">
         Add New Task
       </h2>
-      <div className="flex flex-col gap-4 sm:flex-row">
+      <form onSubmit={handleSubmit} className="flex flex-col gap-4 sm:flex-row">
         <input
           type="text"
           placeholder="Task name"
@@ -55,7 +54,7 @@ export function AddTaskForm({ onAdd }: AddTaskFormProps) {
           value={taskHours}
           onChange={(e) => setTaskHours(e.target.value)}
           step="0.5"
-          min="0"
+          min="0.5"
           className="w-32 rounded-lg border border-zinc-300 px-4 py-2 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-50"
         />
         <input
@@ -65,13 +64,12 @@ export function AddTaskForm({ onAdd }: AddTaskFormProps) {
           className="w-40 rounded-lg border border-zinc-300 px-4 py-2 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-50"
         />
         <button
-          onClick={handleSubmit}
+          type="submit"
           className="rounded-lg bg-blue-600 px-6 py-2 font-medium text-white transition-colors hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600"
         >
           Add Task
         </button>
-      </div>
+      </form>
     </div>
   );
 }
-

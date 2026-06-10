@@ -34,7 +34,7 @@ export function TaskItem({ task, onToggle, onDelete }: TaskItemProps) {
           {task.name}
         </p>
         <p className="text-sm text-zinc-500 dark:text-zinc-400">
-          {task.hours} hours • {new Date(task.date).toLocaleDateString()}
+          {task.hours} hours • {new Date(task.date + 'T00:00:00').toLocaleDateString()}
         </p>
       </div>
       <button

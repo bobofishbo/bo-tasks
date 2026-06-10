@@ -5,17 +5,13 @@ import { Navigation } from '../components/Navigation';
 import { TodayHours } from '../components/TodayHours';
 import { NotesBlock } from '../components/NotesBlock';
 import { TaskItem } from '../components/TaskItem';
-import { getTodayEasternDateObject } from '../utils/dateUtils';
+import { getTodayEasternDate } from '../utils/dateUtils';
 
 export default function HistoryPage() {
   const { tasks, loading, toggleTask, deleteTask } = useTasks();
 
-  const today = getTodayEasternDateObject();
-
-  const pastTasks = tasks.filter((task) => {
-    const taskDate = new Date(task.date + 'T00:00:00');
-    return taskDate < today;
-  });
+  const today = getTodayEasternDate();
+  const pastTasks = tasks.filter((task) => task.date < today);
 
   if (loading) {
     return (
@@ -62,4 +58,3 @@ export default function HistoryPage() {
     </div>
   );
 }
-
