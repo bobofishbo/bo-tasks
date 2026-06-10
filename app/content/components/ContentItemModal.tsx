@@ -7,6 +7,7 @@ import { STATUS_CONFIG, STATUSES } from '../config';
 interface Props {
   date?: string;
   time?: string;
+  defaultStatus?: DbContentItem['status'];
   item?: DbContentItem;
   onSave: (data: Omit<DbContentItem, 'id' | 'created_at'>) => Promise<void>;
   onDelete?: () => Promise<void>;
@@ -23,9 +24,9 @@ const DURATION_OPTIONS = [
   { label: '3 hr',   value: 180 },
 ];
 
-export function ContentItemModal({ date, time, item, onSave, onDelete, onClose }: Props) {
+export function ContentItemModal({ date, time, defaultStatus, item, onSave, onDelete, onClose }: Props) {
   const [title,           setTitle]           = useState(item?.title ?? '');
-  const [status,          setStatus]          = useState<DbContentItem['status']>(item?.status ?? 'idea');
+  const [status,          setStatus]          = useState<DbContentItem['status']>(item?.status ?? defaultStatus ?? 'idea');
   const [scheduledDate,   setScheduledDate]   = useState(item?.scheduled_date ?? date ?? '');
   const [scheduledTime,   setScheduledTime]   = useState(item?.scheduled_time ?? time ?? '09:00');
   const [durationMinutes, setDurationMinutes] = useState(item?.duration_minutes ?? 60);
