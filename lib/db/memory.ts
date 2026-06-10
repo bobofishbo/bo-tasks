@@ -1,5 +1,5 @@
 import { randomUUID } from 'crypto';
-import type { Database, DbTask, DbTimeBlock, DbNote, DbContentItem, DbBannerEvent } from './interface';
+import type { Database, DbTask, DbTimeBlock, DbNote, DbContentItem, DbBannerEvent, DbInspiration } from './interface';
 
 function dateOffset(daysAgo: number): string {
   const d = new Date();
@@ -76,6 +76,45 @@ const contentItems: DbContentItem[] = [
     reference_videos: '',
     script: '',
     created_at: now,
+  },
+];
+
+const inspirations: DbInspiration[] = [
+  {
+    id: 'i-1',
+    url: 'https://www.instagram.com/reel/C8xGolfSwing1/',
+    platform: 'instagram',
+    title: 'lag drill breakdown',
+    notes: 'really clean slow-mo of the wrist hinge — could steal this format',
+    status: 'new',
+    created_at: dateOffset(0),
+  },
+  {
+    id: 'i-2',
+    url: 'https://www.tiktok.com/@tourprogolf/video/7380001234567890',
+    platform: 'tiktok',
+    title: 'course management tip',
+    notes: 'the way he explains layup strategy is super digestible, 60 sec format',
+    status: 'new',
+    created_at: dateOffset(1),
+  },
+  {
+    id: 'i-3',
+    url: 'https://www.instagram.com/reel/C9yMorningRange2/',
+    platform: 'instagram',
+    title: 'morning range routine',
+    notes: '',
+    status: 'reviewed',
+    created_at: dateOffset(2),
+  },
+  {
+    id: 'i-4',
+    url: 'https://www.tiktok.com/@golfweekly/video/7390009876543210',
+    platform: 'tiktok',
+    title: 'us open reaction reel',
+    notes: 'great hook — opens mid-reaction, no intro',
+    status: 'saved',
+    created_at: dateOffset(4),
   },
 ];
 
@@ -177,6 +216,27 @@ export const memoryDb: Database = {
     async delete(id) {
       const idx = bannerEvents.findIndex((b) => b.id === id);
       if (idx !== -1) bannerEvents.splice(idx, 1);
+    },
+  },
+  inspirations: {
+    async getAll(status) {
+      const result = status ? inspirations.filter((i) => i.status === status) : [...inspirations];
+      return result.sort((a, b) => b.created_at.localeCompare(a.created_at));
+    },
+    async create(data) {
+      const item: DbInspiration = { id: randomUUID(), ...data, created_at: new Date().toISOString() };
+      inspirations.push(item);
+      return item;
+    },
+    async update(id, data) {
+      const idx = inspirations.findIndex((i) => i.id === id);
+      if (idx === -1) return null;
+      inspirations[idx] = { ...inspirations[idx], ...data };
+      return inspirations[idx];
+    },
+    async delete(id) {
+      const idx = inspirations.findIndex((i) => i.id === id);
+      if (idx !== -1) inspirations.splice(idx, 1);
     },
   },
 };

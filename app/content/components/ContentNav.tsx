@@ -4,8 +4,9 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 
 const TABS = [
-  { label: 'Calendar', href: '/content' },
-  { label: 'Board',    href: '/content/board' },
+  { label: 'Calendar',     href: '/content' },
+  { label: 'Board',        href: '/content/board' },
+  { label: 'Inspirations', href: '/content/inspirations' },
 ];
 
 export function ContentNav() {

@@ -98,6 +98,29 @@ export const supabaseDb: Database = {
       if (error) throw new Error(error.message);
     },
   },
+  inspirations: {
+    async getAll(status) {
+      let query = supabase.from('inspirations').select('*').order('created_at', { ascending: false });
+      if (status) query = query.eq('status', status);
+      const { data, error } = await query;
+      if (error) throw new Error(error.message);
+      return data ?? [];
+    },
+    async create(data) {
+      const { data: item, error } = await supabase.from('inspirations').insert(data).select().single();
+      if (error) throw new Error(error.message);
+      return item;
+    },
+    async update(id, data) {
+      const { data: item, error } = await supabase.from('inspirations').update(data).eq('id', id).select().single();
+      if (error) return null;
+      return item;
+    },
+    async delete(id) {
+      const { error } = await supabase.from('inspirations').delete().eq('id', id);
+      if (error) throw new Error(error.message);
+    },
+  },
   bannerEvents: {
     async getAll(from, to) {
       let query = supabase.from('banner_events').select('*').order('start_date');

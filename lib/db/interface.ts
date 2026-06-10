@@ -24,6 +24,22 @@ export interface DbNote {
 export const STATUSES = ['idea', 'draft', 'scheduled', 'published'] as const;
 export type Status = typeof STATUSES[number];
 
+export const INSPIRATION_PLATFORMS = ['instagram', 'tiktok'] as const;
+export type InspirationPlatform = typeof INSPIRATION_PLATFORMS[number];
+
+export const INSPIRATION_STATUSES = ['new', 'reviewed', 'saved'] as const;
+export type InspirationStatus = typeof INSPIRATION_STATUSES[number];
+
+export interface DbInspiration {
+  id: string;
+  url: string;
+  platform: InspirationPlatform;
+  title: string;       // short label entered on phone
+  notes: string;       // freeform notes entered on phone
+  status: InspirationStatus;
+  created_at: string;
+}
+
 export interface DbContentItem {
   id: string;
   title: string;
@@ -74,6 +90,12 @@ export interface Database {
     getAll(from?: string, to?: string): Promise<DbBannerEvent[]>;
     create(data: Omit<DbBannerEvent, 'id' | 'created_at'>): Promise<DbBannerEvent>;
     update(id: string, data: Partial<Omit<DbBannerEvent, 'id' | 'created_at'>>): Promise<DbBannerEvent | null>;
+    delete(id: string): Promise<void>;
+  };
+  inspirations: {
+    getAll(status?: InspirationStatus): Promise<DbInspiration[]>;
+    create(data: Omit<DbInspiration, 'id' | 'created_at'>): Promise<DbInspiration>;
+    update(id: string, data: Partial<Omit<DbInspiration, 'id' | 'created_at'>>): Promise<DbInspiration | null>;
     delete(id: string): Promise<void>;
   };
 }
