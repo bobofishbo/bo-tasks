@@ -28,6 +28,74 @@ let note: DbNote = {
   updated_at: now,
 };
 
+// ── recurring weekly schedule ─────────────────────────────────────────────────
+// day: 0=Mon … 6=Sun  |  time: HH:MM (ET)
+
+const WEEKLY_TEMPLATE: Array<{
+  day: number; time: string; dur: number;
+  title: string; platform: string; script: string;
+}> = [
+  // MON
+  { day: 0, time: '12:30', dur: 60,  title: 'Swing Analysis Carousel',          platform: 'Instagram, TikTok, Facebook, Threads, LinkedIn',               script: 'Same golfer as 7 PM reel; Sabrina selects Mon morning — standard golfer selection, not necessarily marquee' },
+  { day: 0, time: '19:00', dur: 60,  title: 'Swing Analysis Reel',               platform: 'Instagram, TikTok, YouTube Shorts, Facebook, Threads, LinkedIn', script: 'Paired with 12:30 PM carousel — same golfer' },
+  // TUE
+  { day: 1, time: '07:00', dur: 60,  title: 'AI Carousel',                       platform: 'Instagram, TikTok, Facebook, Threads, LinkedIn',               script: 'Educational depth — AI misconception, AI instruction science, or coaching concept; queue in Schedulala by Mon EOD' },
+  // WED
+  { day: 2, time: '08:00', dur: 90,  title: 'AI Twin Building — JR thoughts',    platform: 'Instagram, TikTok, YouTube Shorts, Facebook, Threads, LinkedIn', script: 'JR records Mon–Tue; Sabrina edits; ready by Tue night' },
+  { day: 2, time: '12:30', dur: 60,  title: 'Swing Analysis Carousel',          platform: 'Instagram, TikTok, Facebook, Threads, LinkedIn',               script: 'Same golfer as 7 PM reel; Sabrina selects Wed morning — standard selection' },
+  { day: 2, time: '19:00', dur: 60,  title: 'Swing Analysis Reel',               platform: 'Instagram, TikTok, YouTube Shorts, Facebook, Threads, LinkedIn', script: 'Paired with 12:30 PM carousel — same golfer' },
+  // THU
+  { day: 3, time: '07:00', dur: 60,  title: 'AI Carousel',                       platform: 'Instagram, TikTok, Facebook, Threads, LinkedIn',               script: 'Educational depth — AI instruction, technique analysis, or coaching insight; queue in Schedulala by Wed EOD' },
+  { day: 3, time: '13:00', dur: 60,  title: 'Viral / Creative / Cinematic #1',   platform: 'Instagram, TikTok, YouTube Shorts, Facebook, Threads, LinkedIn', script: 'Approved Wed, filmed Thu; Sabrina edits and posts' },
+  // FRI
+  { day: 4, time: '08:00', dur: 60,  title: 'Swing Analysis Carousel',          platform: 'Instagram, TikTok, Facebook, Threads, LinkedIn',               script: 'Marquee golfer — prioritize currently active tournament player or trending athlete; Sabrina selects Fri morning' },
+  { day: 4, time: '12:00', dur: 30,  title: 'RedNote post #1',                   platform: 'RedNote',                                                      script: 'Repurposed/translated content; Sabrina posts and engages' },
+  { day: 4, time: '18:00', dur: 60,  title: 'Swing Analysis Reel',               platform: 'Instagram, TikTok, YouTube Shorts, Facebook, Threads, LinkedIn', script: 'Paired with 8 AM carousel — same marquee golfer; 6–8 PM ET pre-weekend window' },
+  { day: 4, time: '19:00', dur: 60,  title: 'Transformation Post #1',            platform: 'Instagram, TikTok, YouTube Shorts, Facebook, Threads, LinkedIn', script: 'Jane films Thu; Sabrina edits and posts; Fri evening = high-engagement slot' },
+  // SAT
+  { day: 5, time: '08:00', dur: 60,  title: 'AI Carousel',                       platform: 'Instagram, TikTok, Facebook, Threads, LinkedIn',               script: 'Lighter/entertaining tone — pop-culture golf, fun facts, or casual format; morning-before-round window' },
+  { day: 5, time: '12:00', dur: 90,  title: '"Curious to Course-Ready" — JR series', platform: 'Instagram, TikTok, YouTube Shorts, Facebook, Threads, LinkedIn', script: 'JR-filmed, Sabrina-edited; asset ready by Sun night' },
+  { day: 5, time: '21:00', dur: 30,  title: 'RedNote post #2',                   platform: 'RedNote',                                                      script: 'Repurposed/translated content; Sabrina posts and engages' },
+  // SUN
+  { day: 6, time: '08:00', dur: 60,  title: 'Swing Analysis Carousel',          platform: 'Instagram, TikTok, Facebook, Threads, LinkedIn',               script: 'Marquee golfer — prioritize tournament closer, just-finished event, or trending athlete; Sabrina selects Sun morning' },
+  { day: 6, time: '13:00', dur: 90,  title: 'Viral / Creative / Cinematic #2',   platform: 'Instagram, TikTok, YouTube Shorts, Facebook, Threads, LinkedIn', script: 'Approved Wed, filmed Fri; Sabrina edits and posts' },
+  { day: 6, time: '19:00', dur: 60,  title: 'Swing Analysis Reel',               platform: 'Instagram, TikTok, YouTube Shorts, Facebook, Threads, LinkedIn', script: 'Paired with 8 AM carousel — same marquee golfer; 7–9 PM ET post-round window' },
+  { day: 6, time: '20:30', dur: 60,  title: 'Transformation Post #2',            platform: 'Instagram, TikTok, YouTube Shorts, Facebook, Threads, LinkedIn', script: 'Jane films Fri; Sabrina edits and posts Sun; post-round reflection — highest engagement window' },
+];
+
+function generateRecurringSchedule(): DbContentItem[] {
+  const today = new Date();
+  const dow   = today.getDay(); // 0=Sun
+  const daysToNextMon = dow === 0 ? 1 : 8 - dow;
+  const monday = new Date(today);
+  monday.setDate(today.getDate() + daysToNextMon);
+  monday.setHours(0, 0, 0, 0);
+
+  const items: DbContentItem[] = [];
+  for (let week = 0; week < 3; week++) {
+    for (const t of WEEKLY_TEMPLATE) {
+      const d = new Date(monday);
+      d.setDate(monday.getDate() + week * 7 + t.day);
+      const dateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+      items.push({
+        id: `sched-w${week}-d${t.day}-${t.time.replace(':', '')}`,
+        title: t.title,
+        status: 'published',
+        scheduled_date: dateStr,
+        scheduled_time: t.time,
+        duration_minutes: t.dur,
+        platform: t.platform,
+        reference_videos: '',
+        script: t.script,
+        created_at: now,
+      });
+    }
+  }
+  return items;
+}
+
+// ── content items (manual seeds + recurring schedule) ────────────────────────
+
 const contentItems: DbContentItem[] = [
   {
     id: 'c-1', title: 'Morning routine breakdown',
@@ -77,6 +145,7 @@ const contentItems: DbContentItem[] = [
     script: '',
     created_at: now,
   },
+  ...generateRecurringSchedule(),
 ];
 
 const inspirations: DbInspiration[] = [

@@ -1,0 +1,44 @@
+name: BoSpace
+options:
+  bundleIdPrefix: com.bo.bospace
+  deploymentTarget:
+    iOS: "16.0"
+  xcodeVersion: "15"
+  generateEmptyDirectories: true
+
+settings:
+  base:
+    SWIFT_VERSION: "5.9"
+    MARKETING_VERSION: "1.0"
+    CURRENT_PROJECT_VERSION: "1"
+    DEVELOPMENT_TEAM: ""   # ← paste your Apple Team ID here before running xcodegen
+
+targets:
+  BoSpace:
+    type: application
+    platform: iOS
+    sources:
+      - BoSpace
+      - Shared
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.bo.bospace
+        INFOPLIST_FILE: BoSpace/Info.plist
+        CODE_SIGN_ENTITLEMENTS: BoSpace.entitlements
+        LD_RUNPATH_SEARCH_PATHS: "$(inherited) @executable_path/Frameworks"
+    dependencies:
+      - target: ShareExtension
+        embed: true
+
+  ShareExtension:
+    type: app-extension
+    platform: iOS
+    sources:
+      - ShareExtension
+      - Shared
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.bo.bospace.ShareExtension
+        INFOPLIST_FILE: ShareExtension/Info.plist
+        CODE_SIGN_ENTITLEMENTS: ShareExtension.entitlements
+        LD_RUNPATH_SEARCH_PATHS: "$(inherited) @executable_path/Frameworks @executable_path/../../Frameworks"
