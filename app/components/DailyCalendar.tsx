@@ -30,15 +30,6 @@ function fmtHour(h: number): string {
   return `${actual - 12} PM`;
 }
 
-function fmtTime(gridMin: number): string {
-  const totalMin = (GRID_START * 60 + gridMin) % (24 * 60);
-  const h = Math.floor(totalMin / 60);
-  const m = totalMin % 60;
-  const ampm = h < 12 ? 'AM' : 'PM';
-  const h12 = h === 0 ? 12 : h > 12 ? h - 12 : h;
-  return `${h12}:${String(m).padStart(2, '0')} ${ampm}`;
-}
-
 function gridMinToHHMM(gridMin: number): string {
   const totalMin = (GRID_START * 60 + gridMin) % (24 * 60);
   const h = Math.floor(totalMin / 60);
@@ -130,7 +121,7 @@ function EventBlock({ ev }: { ev: Positioned }) {
 
 // ── Quick-create popover ─────────────────────────────────────────────────────
 interface QuickCreate {
-  gridMin: number; // snapped start
+  gridMin: number; // snapped start, used to position the popover
   top: number;     // px position in event area
 }
 
@@ -144,19 +135,26 @@ export function DailyCalendar({ onTaskCreated }: Props) {
   const [gcalLoading, setGcalLoading] = useState(true);
   const [quickCreate, setQuickCreate] = useState<QuickCreate | null>(null);
   const [newTaskName, setNewTaskName] = useState('');
+  const [startHHMM, setStartHHMM] = useState('');
+  const [endHHMM, setEndHHMM] = useState('');
   const [saving, setSaving] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const eventAreaRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const today = getTodayEasternDate();
 
-  useEffect(() => {
-    fetch(`/api/gcal/events?date=${today}`)
+  const loadEvents = useCallback(() => {
+    setGcalLoading(true);
+    return fetch(`/api/gcal/events?date=${today}`)
       .then((r) => r.json())
       .then((data) => setGcalEvents(Array.isArray(data) ? data : []))
       .catch(() => setGcalEvents([]))
       .finally(() => setGcalLoading(false));
   }, [today]);
+
+  useEffect(() => {
+    loadEvents();
+  }, [loadEvents]);
 
   const allEvents = positionEvents(gcalEvents);
 
@@ -185,19 +183,23 @@ export function DailyCalendar({ onTaskCreated }: Props) {
     const clamped = Math.max(0, Math.min(TOTAL_H * 60 - 60, snapped));
     setQuickCreate({ gridMin: clamped, top: px(clamped) });
     setNewTaskName('');
+    setStartHHMM(gridMinToHHMM(clamped));
+    setEndHHMM(gridMinToHHMM(clamped + 60));
     setTimeout(() => inputRef.current?.focus(), 0);
   }, []);
 
   const handleSave = async () => {
-    if (!newTaskName.trim() || !quickCreate) return;
+    if (!newTaskName.trim() || !quickCreate || !startHHMM || !endHHMM) return;
     setSaving(true);
-    const startHHMM = gridMinToHHMM(quickCreate.gridMin);
-    const endHHMM   = gridMinToHHMM(quickCreate.gridMin + 60);
+    const [sh, sm] = startHHMM.split(':').map(Number);
+    const [eh, em] = endHHMM.split(':').map(Number);
+    let durationMin = (eh * 60 + em) - (sh * 60 + sm);
+    if (durationMin <= 0) durationMin += 24 * 60;
     try {
       const taskRes = await fetch('/api/tasks', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: newTaskName.trim(), hours: 1, date: today }),
+        body: JSON.stringify({ name: newTaskName.trim(), hours: durationMin / 60, date: today }),
       });
       if (!taskRes.ok) throw new Error();
       const task = await taskRes.json();
@@ -222,12 +224,20 @@ export function DailyCalendar({ onTaskCreated }: Props) {
       <div className="flex items-center justify-between border-b border-zinc-200 px-5 py-3 dark:border-zinc-700">
         <span className="text-sm font-semibold text-zinc-700 dark:text-zinc-200">Schedule</span>
         <div className="flex items-center gap-3">
-          {gcalLoading && <span className="text-xs text-zinc-400">Loading…</span>}
           <div className="flex items-center gap-2 text-xs text-zinc-400">
             <Dot className="bg-blue-600" /> Meeting
             <Dot className="bg-emerald-600" /> Class
             <Dot className="bg-violet-600" /> Task
           </div>
+          <button
+            onClick={loadEvents}
+            disabled={gcalLoading}
+            title="Re-sync with Google Calendar"
+            className="flex items-center gap-1 rounded px-1.5 py-1 text-xs text-zinc-400 hover:bg-zinc-100 hover:text-zinc-600 disabled:opacity-50 dark:hover:bg-zinc-800 dark:hover:text-zinc-300"
+          >
+            <SyncIcon spinning={gcalLoading} />
+            {gcalLoading ? 'Syncing…' : 'Sync'}
+          </button>
         </div>
       </div>
 
@@ -275,31 +285,57 @@ export function DailyCalendar({ onTaskCreated }: Props) {
             {quickCreate && (
               <div
                 data-quick-create
-                className="absolute z-30 flex items-center gap-2 rounded-lg border border-violet-400 bg-white px-3 py-2 shadow-lg dark:bg-zinc-800"
+                className="absolute z-30 flex flex-col gap-2 rounded-lg border border-violet-400 bg-white px-3 py-2 shadow-lg dark:bg-zinc-800"
                 style={{ top: quickCreate.top, left: 28, right: 8 }}
                 onClick={(e) => e.stopPropagation()}
               >
-                <div className="h-3 w-3 shrink-0 rounded-sm bg-violet-600" />
-                <span className="shrink-0 font-mono text-xs text-zinc-400">{fmtTime(quickCreate.gridMin)}</span>
-                <input
-                  ref={inputRef}
-                  value={newTaskName}
-                  onChange={(e) => setNewTaskName(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') handleSave();
-                    if (e.key === 'Escape') setQuickCreate(null);
-                  }}
-                  placeholder="Task name…"
-                  className="min-w-0 flex-1 bg-transparent text-sm text-zinc-800 outline-none placeholder:text-zinc-400 dark:text-zinc-100"
-                />
-                <button
-                  onClick={handleSave}
-                  disabled={saving || !newTaskName.trim()}
-                  className="shrink-0 rounded bg-violet-600 px-2 py-0.5 text-xs text-white disabled:opacity-40 hover:bg-violet-700"
-                >
-                  {saving ? '…' : 'Add'}
-                </button>
-                <button onClick={() => setQuickCreate(null)} className="shrink-0 text-xs text-zinc-400 hover:text-zinc-600">✕</button>
+                <div className="flex items-center gap-2">
+                  <div className="h-3 w-3 shrink-0 rounded-sm bg-violet-600" />
+                  <input
+                    ref={inputRef}
+                    value={newTaskName}
+                    onChange={(e) => setNewTaskName(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') handleSave();
+                      if (e.key === 'Escape') setQuickCreate(null);
+                    }}
+                    placeholder="Task name…"
+                    className="min-w-0 flex-1 bg-transparent text-sm text-zinc-800 outline-none placeholder:text-zinc-400 dark:text-zinc-100"
+                  />
+                </div>
+                <div className="flex items-center gap-2 pl-5">
+                  <input
+                    type="time"
+                    value={startHHMM}
+                    onChange={(e) => setStartHHMM(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') handleSave();
+                      if (e.key === 'Escape') setQuickCreate(null);
+                    }}
+                    className="rounded border border-zinc-200 bg-transparent px-1 py-0.5 font-mono text-xs text-zinc-600 outline-none dark:border-zinc-600 dark:text-zinc-300"
+                  />
+                  <span className="text-xs text-zinc-400">–</span>
+                  <input
+                    type="time"
+                    value={endHHMM}
+                    onChange={(e) => setEndHHMM(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') handleSave();
+                      if (e.key === 'Escape') setQuickCreate(null);
+                    }}
+                    className="rounded border border-zinc-200 bg-transparent px-1 py-0.5 font-mono text-xs text-zinc-600 outline-none dark:border-zinc-600 dark:text-zinc-300"
+                  />
+                  <div className="ml-auto flex items-center gap-2">
+                    <button
+                      onClick={handleSave}
+                      disabled={saving || !newTaskName.trim()}
+                      className="shrink-0 rounded bg-violet-600 px-2 py-0.5 text-xs text-white disabled:opacity-40 hover:bg-violet-700"
+                    >
+                      {saving ? '…' : 'Add'}
+                    </button>
+                    <button onClick={() => setQuickCreate(null)} className="shrink-0 text-xs text-zinc-400 hover:text-zinc-600">✕</button>
+                  </div>
+                </div>
               </div>
             )}
 
@@ -319,4 +355,23 @@ export function DailyCalendar({ onTaskCreated }: Props) {
 
 function Dot({ className }: { className: string }) {
   return <span className={`inline-block h-2 w-2 rounded-full ${className}`} />;
+}
+
+function SyncIcon({ spinning }: { spinning: boolean }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={2}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={`h-3.5 w-3.5 ${spinning ? 'animate-spin' : ''}`}
+    >
+      <path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+      <path d="M3 3v5h5" />
+      <path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16" />
+      <path d="M16 16h5v5" />
+    </svg>
+  );
 }

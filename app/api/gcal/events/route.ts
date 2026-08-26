@@ -8,18 +8,14 @@ export async function GET(req: Request) {
   const date = new URL(req.url).searchParams.get('date') ?? getTodayEasternDate();
 
   try {
-    // 1. Try Supabase cache first (populated at 8 AM by the cron)
-    const cached = await getCachedEvents(date);
-    if (cached !== null) {
-      return NextResponse.json(cached);
-    }
-
-    // 2. Cache miss — fetch live from Google Calendar and store for next time
+    // Always pull live from Google Calendar so a page refresh reflects the latest changes.
     const events = await fetchTodayEvents(date);
     await cacheEventsForDate(date, events).catch(() => {/* don't fail the request if cache write fails */});
     return NextResponse.json(events);
   } catch (err) {
-    console.error('GCal events route error:', err);
-    return NextResponse.json([]);
+    console.error('GCal events route error, falling back to cache:', err);
+    // Google API hiccup — serve the last known-good cache (populated by cron or a prior request) instead of an empty schedule.
+    const cached = await getCachedEvents(date).catch(() => null);
+    return NextResponse.json(cached ?? []);
   }
 }

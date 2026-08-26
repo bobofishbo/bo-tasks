@@ -3,6 +3,44 @@ import { supabase } from './supabase';
 import type { CalEvent, CalEventStatus } from '@/app/types';
 
 const PERSONAL_KW = /\b(lunch|dinner|breakfast|gym|workout)\b/i;
+const EASTERN_TZ = 'America/New_York';
+
+/** Offset (minutes) of `timeZone` from UTC at the instant `date`, e.g. -240 for EDT. */
+function getTZOffsetMinutes(date: Date, timeZone: string): number {
+  const parts: Record<string, string> = {};
+  for (const p of new Intl.DateTimeFormat('en-US', {
+    timeZone,
+    year: 'numeric', month: '2-digit', day: '2-digit',
+    hour: '2-digit', minute: '2-digit', second: '2-digit',
+    hour12: false,
+  }).formatToParts(date)) {
+    if (p.type !== 'literal') parts[p.type] = p.value;
+  }
+  const hour = parts.hour === '24' ? 0 : Number(parts.hour);
+  const asUTC = Date.UTC(
+    Number(parts.year), Number(parts.month) - 1, Number(parts.day),
+    hour, Number(parts.minute), Number(parts.second),
+  );
+  return (asUTC - date.getTime()) / 60_000;
+}
+
+/** Converts an Eastern-time wall clock (e.g. 8:00 AM on the given date) to the actual UTC instant. */
+function easternWallTimeToUTC(y: number, m: number, d: number, h: number, min: number): Date {
+  const guessMs = Date.UTC(y, m - 1, d, h, min);
+  const offsetMin = getTZOffsetMinutes(new Date(guessMs), EASTERN_TZ);
+  return new Date(guessMs - offsetMin * 60_000);
+}
+
+/** Reads the [hour, minute] of a Date as displayed in Eastern time, regardless of server timezone. */
+function easternHourMinute(date: Date): [number, number] {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: EASTERN_TZ,
+    hour: '2-digit', minute: '2-digit', hour12: false,
+  }).formatToParts(date);
+  const hour = Number(parts.find((p) => p.type === 'hour')!.value);
+  const minute = Number(parts.find((p) => p.type === 'minute')!.value);
+  return [hour === 24 ? 0 : hour, minute];
+}
 
 function makeAuth() {
   const client = new google.auth.OAuth2(
@@ -14,15 +52,17 @@ function makeAuth() {
 }
 
 export async function fetchTodayEvents(dateStr: string): Promise<CalEvent[]> {
-  if (!process.env.GOOGLE_REFRESH_TOKEN) return [];
+  if (!process.env.GOOGLE_REFRESH_TOKEN) {
+    throw new Error('GOOGLE_REFRESH_TOKEN not configured');
+  }
 
   const auth = makeAuth();
   const cal = google.calendar({ version: 'v3', auth });
 
   const [year, month, day] = dateStr.split('-').map(Number);
-  // Fetch 8 AM today through 2 AM next day (local time)
-  const timeMin = new Date(year, month - 1, day, 8, 0, 0).toISOString();
-  const timeMax = new Date(year, month - 1, day + 1, 2, 0, 0).toISOString();
+  // Fetch 8 AM today through 2 AM next day, in Eastern time (server may run in any timezone)
+  const timeMin = easternWallTimeToUTC(year, month, day, 8, 0).toISOString();
+  const timeMax = easternWallTimeToUTC(year, month, day + 1, 2, 0).toISOString();
 
   const calendarIds = (process.env.GOOGLE_CALENDAR_IDS || 'primary')
     .split(',').map(s => s.trim());
@@ -66,8 +106,8 @@ export async function fetchTodayEvents(dateStr: string): Promise<CalEvent[]> {
           id: ev.id ?? crypto.randomUUID(),
           title,
           sub: ev.location ?? undefined,
-          start: [startDt.getHours(), startDt.getMinutes()],
-          end: [endDt.getHours(), endDt.getMinutes()],
+          start: easternHourMinute(startDt),
+          end: easternHourMinute(endDt),
           status,
         });
       }
